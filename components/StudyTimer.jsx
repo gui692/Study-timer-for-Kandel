@@ -81,6 +81,7 @@ export default function StudyTimer() {
   const [phaseDurations, setPhaseDurations] = useState(
     phases.map(p => p.duration)
   );
+  const [wakeLock, setWakeLock] = useState(null);
 
   const currentPhase = phases[currentPhaseIndex];
   const currentPhaseDuration = phaseDurations[currentPhaseIndex];
@@ -88,6 +89,41 @@ export default function StudyTimer() {
   const elapsedBefore = phaseDurations.slice(0, currentPhaseIndex).reduce((sum, d) => sum + d, 0);
   const currentElapsed = currentPhaseDuration - timeRemaining;
   const totalElapsed = elapsedBefore + currentElapsed;
+
+  // Wake Lock effect - keeps screen awake when timer is running
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator && isRunning) {
+          const lock = await navigator.wakeLock.request('screen');
+          setWakeLock(lock);
+        }
+      } catch (err) {
+        console.log('Wake Lock error:', err);
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (wakeLock) {
+        try {
+          await wakeLock.release();
+          setWakeLock(null);
+        } catch (err) {
+          console.log('Wake Lock release error:', err);
+        }
+      }
+    };
+
+    if (isRunning) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    return () => {
+      releaseWakeLock();
+    };
+  }, [isRunning]);
 
   useEffect(() => {
     let interval;
